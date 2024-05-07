@@ -71,3 +71,6 @@ dkms.conf
 
 # Unignore all dirs
 !*/
+
+# Makefile 포함
+!Makefile
