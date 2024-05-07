@@ -165,7 +165,7 @@ void serve_static(int fd, char *filename, int filesize, char *version) // TODO: 
  * @param filename 확장자를 확인할 파일의 이름
  * @param filetype 결정된 MIME 타입을 저장할 버퍼
  */
-void get_filetype(char *filename, char *filetype)
+void get_filetype(char *filename, char *filetype) // TODO: 11.7
 {
     /* filename의 확장자명을 기반으로 filetype 지정 */
     if (strstr(filename, ".html"))
@@ -176,6 +176,8 @@ void get_filetype(char *filename, char *filetype)
         strcpy(filetype, "image/png");
     else if (strstr(filename, ".jpg"))
         strcpy(filetype, "image/jpeg");
+    else if (strstr(filename, ".mpg"))
+        strcpy(filetype, "video/mpeg");
     else
         strcpy(filetype, "text/plain");
 }
