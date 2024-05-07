@@ -1,9 +1,9 @@
 #include "utils.h"
 
 /**
- * @brief
+ * @brief HTTP 요청을 처리하는 함수
  *
- * @param fd
+ * @param fd 클라이언트와의 연결을 나타내는 파일 디스크립터
  */
 void doit(int fd)
 {
@@ -14,12 +14,13 @@ void doit(int fd)
     rio_t rio;
 
     /* Read request line and headers */
-    Rio_readinitb(&rio, fd);
-    Rio_readlineb(&rio, buf, MAXLINE);
+    Rio_readinitb(&rio, fd);           /* rio_t 구조체 초기화 */
+    Rio_readlineb(&rio, buf, MAXLINE); /* buf에 request line 저장 */
     printf("Request headers:\n");
     printf("%s", buf);
-    sscanf(buf, "%s %s %s", method, uri, version);
+    sscanf(buf, "%s %s %s", method, uri, version); /* request line에서 method, uri, version 추출 */
 
+    /* GET 이외의 method로 요청 시 예외처리 */
     if (strcasecmp(method, "GET"))
     {
         clienterror(fd, filename, "501", "Not implemented", "Tiny does not implement this method");
@@ -27,8 +28,9 @@ void doit(int fd)
     }
     read_requesthdrs(&rio);
 
-    /* Parse URI from GET request */
+    /* URI 구문 분석 */
     is_static = parse_uri(uri, filename, cgiargs);
+    /* 존재하지 않는 파일에 접근 시 예외처리 */
     if (stat(filename, &sbuf) < 0)
     {
         clienterror(fd, filename, "404", "Not found", "Tiny couldn't find this file");
@@ -37,6 +39,7 @@ void doit(int fd)
 
     if (is_static) /* Serve static content */
     {
+        /* 접근하는 파일의 유형이 일반 파일이 아니거나, Read 권한이 없을 시 예외처리  */
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IRUSR & sbuf.st_mode))
         {
             clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
@@ -46,6 +49,7 @@ void doit(int fd)
     }
     else /* Serve dynamic content */
     {
+        /* 접근하는 파일의 유형이 일반 파일이 아니거나, Exec 권한이 없을 시 예외처리 */
         if (!(S_ISREG(sbuf.st_mode)) || !(S_IXUSR & sbuf.st_mode))
         {
             clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't run CGI program");
@@ -56,69 +60,79 @@ void doit(int fd)
 }
 
 /**
- * @brief
+ * @brief HTTP 요청의 헤더를 읽고 출력하는 함수
  *
- * @param rp
+ * @param rp 요청을 읽기 위한 rio_t 구조체 포인터
  */
 void read_requesthdrs(rio_t *rp)
 {
-    /* tiny에서 요청 헤더는 사용하지 않고, 읽고 무시한다. */
+    /* tiny 서버는 request header을 사용하지 않음 */
     char buf[MAXLINE];
 
-    Rio_readlineb(rp, buf, MAXLINE);
+    /* request header 출력 */
+    Rio_readlineb(rp, buf, MAXLINE); /* header의 첫 번째 라인 */
     while (strcmp(buf, "\r\n"))
     {
-        Rio_readlineb(rp, buf, MAXLINE);
+        Rio_readlineb(rp, buf, MAXLINE); /* header의 나머지 라인 */
         printf("%s", buf);
     }
+
     return;
 }
 
 /**
- * @brief
+ * @brief 주어진 URI를 분석하여 요청된 파일의 이름과 CGI 인수를 추출하는 함수
  *
- * @param uri
- * @param filename
- * @param cgiargs
- * @return int
+ * @param uri 분석할 URI
+ * @param filename 추출된 파일 이름을 저장할 버퍼
+ * @param cgiargs 추출된 CGI 인수를 저장할 버퍼
+ * @return int 정적 컨텐츠인 경우 1, 동적 컨텐츠인 경우 0을 반환
  */
 int parse_uri(char *uri, char *filename, char *cgiargs)
 {
     char *ptr;
 
-    if (!strstr(uri, "/cgi-bin"))
+    if (!strstr(uri, "/cgi-bin")) /* static content */
     {
+        /* CGI 매개변수 설정 - blank */
         strcpy(cgiargs, "");
+
+        /* filename 설정 */
         strcpy(filename, ".");
         strcat(filename, uri);
         if (uri[strlen(uri) - 1] == '/')
             strcat(filename, "home.html");
+
         return 1;
     }
-    else
+    else /* dynamic content */
     {
+        /* CGI 매개변수 설정 */
         ptr = index(uri, '?');
-        if (ptr)
+        if (ptr) /* Query parameter 존재할 경우 - parameter */
         {
             strcpy(cgiargs, ptr + 1);
             *ptr = '\0';
         }
-        else
+        else /* Query parameter 존재하지 않을 경우 - blank */
         {
             strcpy(cgiargs, "");
         }
+
+        /* filename 설정 */
         strcpy(filename, ".");
         strcat(filename, uri);
+
         return 0;
     }
 }
 
 /**
- * @brief
+ * @brief 정적 컨텐츠를 클라이언트에게 제공하는 함수
  *
- * @param fd
- * @param filename
- * @param filesize
+ * @param fd 클라이언트와의 연결을 나타내는 파일 디스크립터
+ * @param filename 클라이언트에게 제공할 파일의 이름
+ * @param filesize 제공할 파일의 크기
  */
 void serve_static(int fd, char *filename, int filesize)
 {
@@ -146,13 +160,14 @@ void serve_static(int fd, char *filename, int filesize)
 }
 
 /**
- * @brief Get the filetype object
+ * @brief 주어진 파일 이름의 확장자를 기반으로 해당 파일의 MIME 타입을 결정하는 함수
  *
- * @param filename
- * @param filetype
+ * @param filename 확장자를 확인할 파일의 이름
+ * @param filetype 결정된 MIME 타입을 저장할 버퍼
  */
 void get_filetype(char *filename, char *filetype)
 {
+    /* filename의 확장자명을 기반으로 filetype 지정 */
     if (strstr(filename, ".html"))
         strcpy(filetype, "text/html");
     else if (strstr(filename, ".gif"))
@@ -166,11 +181,11 @@ void get_filetype(char *filename, char *filetype)
 }
 
 /**
- * @brief
+ * @brief 동적 컨텐츠를 클라이언트에게 제공하는 함수
  *
- * @param fd
- * @param filename
- * @param cgiargs
+ * @param fd 클라이언트와의 연결을 나타내는 파일 디스크립터
+ * @param filename 실행할 CGI 프로그램의 파일 이름
+ * @param cgiargs CGI 프로그램에 전달할 인수
  */
 void serve_dynamic(int fd, char *filename, char *cgiargs)
 {
@@ -193,13 +208,13 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
 }
 
 /**
- * @brief
+ * @brief 클라이언트에게 오류 메세지를 전송하는 함수
  *
- * @param fd
- * @param cause
- * @param errnum
- * @param shortmsg
- * @param longmsg
+ * @param fd 클라이언트와의 연결을 나타내는 파일 디스크립터
+ * @param cause 오류의 원인
+ * @param errnum 오류 번호
+ * @param shortmsg 짧은 오류 메세지
+ * @param longmsg 긴 오류 메세지
  */
 void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longmsg)
 {
@@ -216,11 +231,14 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     sprintf(body, "%s<hr><em>The Tiny Web server</em></p>\r\n", body);
 
     /* Print the HTTP response */
+    /* 1. response line */
     sprintf(buf, "HTTP/1.0 %s %s\r\n", errnum, shortmsg);
     Rio_writen(fd, buf, strlen(buf));
+    /* 2. response header */
     sprintf(buf, "Content-type: text/html\r\n");
     Rio_writen(fd, buf, strlen(buf));
     sprintf(buf, "Content-length: %d\r\n\r\n", (int)strlen(body));
     Rio_writen(fd, buf, strlen(buf));
+    /* 3. response body */
     Rio_writen(fd, body, strlen(body));
 }
