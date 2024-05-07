@@ -45,7 +45,7 @@ void doit(int fd)
             clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
             return;
         }
-        serve_static(fd, filename, sbuf.st_size);
+        serve_static(fd, filename, sbuf.st_size, version);
     }
     else /* Serve dynamic content */
     {
@@ -134,7 +134,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
  * @param filename 클라이언트에게 제공할 파일의 이름
  * @param filesize 제공할 파일의 크기
  */
-void serve_static(int fd, char *filename, int filesize)
+void serve_static(int fd, char *filename, int filesize, char *version) // TODO: 11.6 C - DONE
 {
     int srcfd; /* 읽은 파일의 디스크립터 */
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
@@ -142,7 +142,7 @@ void serve_static(int fd, char *filename, int filesize)
     /* Send response headers to client */
     get_filetype(filename, filetype);
 
-    sprintf(buf, "HTTP/1.0 200 OK\r\n");
+    sprintf(buf, "%s 200 OK\r\n", version);
     sprintf(buf, "%sServer: Tiny Web Server\r\n", buf);
     sprintf(buf, "%sConnection: close\r\n", buf);
     sprintf(buf, "%sContent-length: %d\r\n", buf, filesize);
