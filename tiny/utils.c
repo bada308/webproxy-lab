@@ -152,11 +152,22 @@ void serve_static(int fd, char *filename, int filesize, char *version) // TODO: 
     printf("%s", buf);
 
     /* Send response body to client */
-    srcfd = Open(filename, O_RDONLY, 0);                        /* 파일을 읽기 전용으로 열기 */
-    srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); /* 파일을 메모리에 매핑하여 읽기 전용으로 할당 */
-    Close(srcfd);                                               /* 파일 디스크립터 닫기 */
-    Rio_writen(fd, srcp, filesize);                             /* 클라이언트 소켓으로 메모리에 매핑된 파일 데이터 전송 */
-    Munmap(srcp, filesize);                                     /* 메모리 매핑 해제 */
+    // srcfd = Open(filename, O_RDONLY, 0);                        /* 파일을 읽기 전용으로 열기 */
+    // srcp = Mmap(0, filesize, PROT_READ, MAP_PRIVATE, srcfd, 0); /* 파일을 메모리에 매핑하여 읽기 전용으로 할당 */
+    // Close(srcfd);                                               /* 파일 디스크립터 닫기 */
+    // Rio_writen(fd, srcp, filesize);                             /* 클라이언트 소켓으로 메모리에 매핑된 파일 데이터 전송 */
+    // Munmap(srcp, filesize);                                     /* 메모리 매핑 해제 */
+
+    if (!strcasecmp(method, "GET"))
+    {
+        // TODO: 11.9 - DONE
+        srcfd = Open(filename, O_RDONLY, 0); /* 파일을 읽기 전용으로 열기 */
+        srcp = malloc(filesize);
+        Rio_readn(srcfd, srcp, filesize);
+        Close(srcfd);                   /* 파일 디스크립터 닫기 */
+        Rio_writen(fd, srcp, filesize); /* 클라이언트 소켓으로 메모리에 매핑된 파일 데이터 전송 */
+        free(srcp);
+    }
 }
 
 /**
