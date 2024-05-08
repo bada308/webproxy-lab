@@ -21,7 +21,7 @@ void doit(int fd)
     sscanf(buf, "%s %s %s", method, uri, version); /* request line에서 method, uri, version 추출 */
 
     /* GET 이외의 method로 요청 시 예외처리 */
-    if (strcasecmp(method, "GET"))
+    if (strcasecmp(method, "GET") && strcasecmp(method, "HEAD"))
     {
         clienterror(fd, filename, "501", "Not implemented", "Tiny does not implement this method");
         return;
@@ -45,7 +45,7 @@ void doit(int fd)
             clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't read the file");
             return;
         }
-        serve_static(fd, filename, sbuf.st_size, version);
+        serve_static(fd, filename, sbuf.st_size, version, method);
     }
     else /* Serve dynamic content */
     {
@@ -55,7 +55,7 @@ void doit(int fd)
             clienterror(fd, filename, "403", "Forbidden", "Tiny couldn't run CGI program");
             return;
         }
-        serve_dynamic(fd, filename, cgiargs);
+        serve_dynamic(fd, filename, cgiargs, method);
     }
 }
 
@@ -134,7 +134,7 @@ int parse_uri(char *uri, char *filename, char *cgiargs)
  * @param filename 클라이언트에게 제공할 파일의 이름
  * @param filesize 제공할 파일의 크기
  */
-void serve_static(int fd, char *filename, int filesize, char *version) // TODO: 11.6 C - DONE
+void serve_static(int fd, char *filename, int filesize, char *version, char *method) // TODO: 11.6 C - DONE
 {
     int srcfd; /* 읽은 파일의 디스크립터 */
     char *srcp, filetype[MAXLINE], buf[MAXBUF];
@@ -202,7 +202,7 @@ void get_filetype(char *filename, char *filetype) // TODO: 11.7
  * @param filename 실행할 CGI 프로그램의 파일 이름
  * @param cgiargs CGI 프로그램에 전달할 인수
  */
-void serve_dynamic(int fd, char *filename, char *cgiargs)
+void serve_dynamic(int fd, char *filename, char *cgiargs, char *method)
 {
     char buf[MAXLINE], *emptylist[] = {NULL};
 
@@ -215,7 +215,8 @@ void serve_dynamic(int fd, char *filename, char *cgiargs)
     /* 자식 프로세스 생성 */
     if (Fork() == 0)
     {
-        setenv("QUERY_STRING", cgiargs, 1);   /* CGI 프로그램에 전달할 환경 변수 설정 */
+        setenv("QUERY_STRING", cgiargs, 1);   /* CGI 프로그램에 전달할 환경 변수 설정 - arguments */
+        setenv("REQUEST_METHOD", method, 1);  /* CGI 프로그램에 전달할 환경 변수 설정 - method */
         Dup2(fd, STDOUT_FILENO);              /* 표준 출력을 클라이언트 소켓으로 리다이렉션 - CGI 프로그램의 출력이 클라이언트에게 전송됨 */
         Execve(filename, emptylist, environ); /* CGI 프로그램 실행 */
     }
@@ -256,4 +257,16 @@ void clienterror(int fd, char *cause, char *errnum, char *shortmsg, char *longms
     Rio_writen(fd, buf, strlen(buf));
     /* 3. response body */
     Rio_writen(fd, body, strlen(body));
+}
+
+void response_head(int is_static)
+{
+    /* HEAD 메서드는 특정 리소스를 GET 메서드로 요청했을 때 돌아올 헤더를 요청한다. */
+    /* 응답 중에 \r\n 개행문자를 만나면 중단해야 하는데,,, 어떻게 하는거지 */
+    if (is_static)
+    {
+    }
+    else
+    {
+    }
 }

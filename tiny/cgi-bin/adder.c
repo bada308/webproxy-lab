@@ -27,12 +27,17 @@ int main(void)
   sprintf(content, "%sThe Internet addition portal.\r\n", content);
   sprintf(content, "%s<p>The answer is: %d + %d = %d</p>\r\n", content, n1, n2, n1 + n2);
   sprintf(content, "%sThanks for visiting!\r\n", content);
+  sprintf(content, "%s<a href="
+                   "/adder.html"
+                   ">back to the Adder World</a>",
+          content);
 
   /* Generate the HTTP response */
   printf("Connection: close\r\n");
   printf("Content-length: %d\r\n", (int)strlen(content));
   printf("Content-type: text/html\r\n\r\n");
-  printf("%s", content);
+  if (!strcasecmp((buf = getenv("REQUEST_METHOD")), "GET"))
+    printf("%s", content);
   fflush(stdout);
 
   exit(0);
